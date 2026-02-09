@@ -1,7 +1,7 @@
 Tool: google-calendar
 Package: @kazibee/google-calendar
 
-Use this tool for calendar event CRUD, scheduling, and calendar management. Use "primary" as calendarId for the user's main calendar.
+Use this tool for calendar event CRUD, scheduling, recurring events, availability checks, and calendar management. Use "primary" as calendarId for the user's main calendar.
 
 Auth requirements
 - CLIENT_ID
@@ -13,9 +13,15 @@ Typical intents to map
 - "list my calendars" -> listCalendars()
 - "show my events" / "what's on my calendar" -> listEvents("primary", { timeMin, timeMax })
 - "schedule a meeting" / "create an event" -> createEvent("primary", event)
+- "create a meeting with video call" -> createEvent("primary", { ...event, addMeetLink: true })
+- "set up a recurring meeting" -> createEvent("primary", { ...event, recurrence: ["RRULE:..."] })
 - "update event" / "reschedule" -> updateEvent("primary", eventId, event)
+- "rename event" / "change just the title" -> patchEvent("primary", eventId, { summary: "..." })
 - "cancel event" / "delete event" -> deleteEvent("primary", eventId)
+- "move event to another calendar" -> moveEvent("primary", eventId, destinationId)
 - "quick add" / natural language scheduling -> quickAdd("primary", text)
+- "when is everyone free" / "check availability" -> freeBusy({ timeMin, timeMax, items })
+- "show occurrences of recurring event" -> listInstances("primary", eventId, { timeMin, timeMax })
 - "get event details" -> getEvent("primary", eventId)
 
 API surface
@@ -25,19 +31,43 @@ Calendar methods:
 - getCalendar(calendarId) -> CalendarInfo
 
 Event methods:
-- listEvents(calendarId, options?) -> EventInfo[]
+- listEvents(calendarId, options?) -> EventInfo[]   (auto-paginates)
   options: { timeMin?, timeMax?, query?, maxResults? }
 - getEvent(calendarId, eventId) -> EventInfo
 - createEvent(calendarId, event) -> EventInfo
-- updateEvent(calendarId, eventId, event) -> EventInfo
+- updateEvent(calendarId, eventId, event) -> EventInfo   (full replace)
+- patchEvent(calendarId, eventId, patch) -> EventInfo   (partial update)
 - deleteEvent(calendarId, eventId) -> void
+- moveEvent(calendarId, eventId, destinationCalendarId) -> EventInfo
 - quickAdd(calendarId, text) -> EventInfo
+- listInstances(calendarId, eventId, options?) -> EventInfo[]   (recurring event occurrences)
+- freeBusy(request) -> FreeBusyResult
 
 Types:
 - CalendarInfo: { id, summary, description, timeZone, primary }
-- EventInfo: { id, summary, description, location, start, end, attendees, status, htmlLink }
-- EventInput: { summary, description?, location?, start, end, attendees?, timeZone? }
+- EventInfo: { id, summary, description, location, start, end, attendees, recurrence, status, colorId, hangoutLink, htmlLink, reminders }
+- EventInput: { summary, description?, location?, start, end, attendees?, timeZone?, recurrence?, colorId?, reminders?, addMeetLink? }
+- EventPatch: same as EventInput but ALL fields optional (partial update)
 - start/end: { dateTime?, date? } — use dateTime for timed events, date for all-day events
+- FreeBusyRequest: { timeMin, timeMax, items: { id }[], timeZone? }
+- FreeBusyResult: { calendars: Record<string, { busy: { start, end }[], errors? }> }
+
+Recurring events
+- Use RRULE strings in the recurrence array: ["RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=12"]
+- Common patterns:
+  - Weekly: RRULE:FREQ=WEEKLY;BYDAY=MO
+  - Daily: RRULE:FREQ=DAILY
+  - Monthly: RRULE:FREQ=MONTHLY;BYMONTHDAY=15
+  - With end: add COUNT=N or UNTIL=YYYYMMDDTHHMMSSZ
+- Use listInstances() to get individual occurrences
+
+Google Meet
+- Set addMeetLink: true to auto-generate a Google Meet link
+- The hangoutLink field in EventInfo contains the Meet URL after creation
+
+Reminders
+- reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] }
+- method: "email" or "popup"
 
 Code call examples
 ```ts
@@ -53,14 +83,7 @@ const events = await tools["google-calendar"].listEvents("primary", {
   timeMax: endOfDay.toISOString(),
 });
 
-// Search events by keyword
-const meetings = await tools["google-calendar"].listEvents("primary", {
-  query: "standup",
-  timeMin: new Date().toISOString(),
-  maxResults: 5,
-});
-
-// Create a timed event with attendees
+// Create meeting with Meet link and reminder
 const event = await tools["google-calendar"].createEvent("primary", {
   summary: "Project review",
   description: "Quarterly review of project milestones",
@@ -69,24 +92,42 @@ const event = await tools["google-calendar"].createEvent("primary", {
   end: { dateTime: "2025-01-20T15:00:00-05:00" },
   attendees: [{ email: "alice@example.com" }, { email: "bob@example.com" }],
   timeZone: "America/New_York",
+  addMeetLink: true,
+  reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 15 }] },
 });
 
-// Create an all-day event
-const allDay = await tools["google-calendar"].createEvent("primary", {
-  summary: "Team offsite",
-  start: { date: "2025-02-10" },
-  end: { date: "2025-02-12" },
+// Create weekly recurring standup
+const standup = await tools["google-calendar"].createEvent("primary", {
+  summary: "Daily standup",
+  start: { dateTime: "2025-01-13T09:00:00-05:00" },
+  end: { dateTime: "2025-01-13T09:15:00-05:00" },
+  recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"],
+  addMeetLink: true,
 });
+
+// Partial update — just change the title
+await tools["google-calendar"].patchEvent("primary", "abc123", {
+  summary: "Updated: Project review",
+});
+
+// Check availability across people
+const free = await tools["google-calendar"].freeBusy({
+  timeMin: "2025-01-15T08:00:00-05:00",
+  timeMax: "2025-01-15T18:00:00-05:00",
+  items: [{ id: "alice@example.com" }, { id: "bob@example.com" }],
+});
+
+// List occurrences of a recurring event
+const instances = await tools["google-calendar"].listInstances("primary", "recurringEventId", {
+  timeMin: "2025-01-01T00:00:00Z",
+  timeMax: "2025-03-31T23:59:59Z",
+});
+
+// Move event to another calendar
+await tools["google-calendar"].moveEvent("primary", "abc123", "work-calendar-id");
 
 // Quick add from natural language
 const quick = await tools["google-calendar"].quickAdd("primary", "Dentist appointment Friday at 2pm");
-
-// Update an event
-const updated = await tools["google-calendar"].updateEvent("primary", "abc123", {
-  summary: "Updated: Project review",
-  start: { dateTime: "2025-01-20T15:00:00-05:00" },
-  end: { dateTime: "2025-01-20T16:00:00-05:00" },
-});
 
 // Delete an event
 await tools["google-calendar"].deleteEvent("primary", "abc123");
@@ -97,3 +138,5 @@ Output behavior
 - Echo calendarId and eventId in responses for traceability.
 - On mutations, confirm what changed (created, updated, deleted).
 - For event listings, include summary, time range, and attendee count.
+- For recurring events, note the recurrence rule and suggest listInstances if user needs individual dates.
+- For freeBusy, summarize open slots rather than just listing busy blocks.
