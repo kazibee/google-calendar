@@ -2,6 +2,7 @@ import { createAuthClient, type Env } from './auth';
 import { createCalendarClient } from './calendar-client';
 
 export type { Env } from './auth';
+export { EventColor } from './calendar-client';
 export type {
   CalendarInfo,
   EventInfo,

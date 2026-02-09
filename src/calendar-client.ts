@@ -3,6 +3,20 @@ import type { OAuth2Client } from 'google-auth-library';
 
 type CalendarAPI = calendar_v3.Calendar;
 
+export enum EventColor {
+  Lavender = '1',
+  Sage = '2',
+  Grape = '3',
+  Flamingo = '4',
+  Banana = '5',
+  Tangerine = '6',
+  Peacock = '7',
+  Graphite = '8',
+  Blueberry = '9',
+  Basil = '10',
+  Tomato = '11',
+}
+
 export interface CalendarInfo {
   id: string;
   summary: string;
@@ -36,7 +50,7 @@ export interface EventInput {
   attendees?: { email: string }[];
   timeZone?: string;
   recurrence?: string[];
-  colorId?: string;
+  colorId?: EventColor | string;
   reminders?: { useDefault: boolean; overrides?: { method: 'email' | 'popup'; minutes: number }[] };
   addMeetLink?: boolean;
 }
@@ -50,7 +64,7 @@ export interface EventPatch {
   attendees?: { email: string }[];
   timeZone?: string;
   recurrence?: string[];
-  colorId?: string;
+  colorId?: EventColor | string;
   reminders?: { useDefault: boolean; overrides?: { method: 'email' | 'popup'; minutes: number }[] };
   addMeetLink?: boolean;
 }
