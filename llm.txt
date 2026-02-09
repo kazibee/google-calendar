@@ -1,0 +1,99 @@
+Tool: google-calendar
+Package: @kazibee/google-calendar
+
+Use this tool for calendar event CRUD, scheduling, and calendar management. Use "primary" as calendarId for the user's main calendar.
+
+Auth requirements
+- CLIENT_ID
+- CLIENT_SECRET
+- REFRESH_TOKEN
+- If auth fails, instruct user to run: kazibee google-calendar login
+
+Typical intents to map
+- "list my calendars" -> listCalendars()
+- "show my events" / "what's on my calendar" -> listEvents("primary", { timeMin, timeMax })
+- "schedule a meeting" / "create an event" -> createEvent("primary", event)
+- "update event" / "reschedule" -> updateEvent("primary", eventId, event)
+- "cancel event" / "delete event" -> deleteEvent("primary", eventId)
+- "quick add" / natural language scheduling -> quickAdd("primary", text)
+- "get event details" -> getEvent("primary", eventId)
+
+API surface
+
+Calendar methods:
+- listCalendars() -> CalendarInfo[]
+- getCalendar(calendarId) -> CalendarInfo
+
+Event methods:
+- listEvents(calendarId, options?) -> EventInfo[]
+  options: { timeMin?, timeMax?, query?, maxResults? }
+- getEvent(calendarId, eventId) -> EventInfo
+- createEvent(calendarId, event) -> EventInfo
+- updateEvent(calendarId, eventId, event) -> EventInfo
+- deleteEvent(calendarId, eventId) -> void
+- quickAdd(calendarId, text) -> EventInfo
+
+Types:
+- CalendarInfo: { id, summary, description, timeZone, primary }
+- EventInfo: { id, summary, description, location, start, end, attendees, status, htmlLink }
+- EventInput: { summary, description?, location?, start, end, attendees?, timeZone? }
+- start/end: { dateTime?, date? } — use dateTime for timed events, date for all-day events
+
+Code call examples
+```ts
+// List calendars
+const calendars = await tools["google-calendar"].listCalendars();
+
+// Get today's events
+const now = new Date();
+const endOfDay = new Date(now);
+endOfDay.setHours(23, 59, 59);
+const events = await tools["google-calendar"].listEvents("primary", {
+  timeMin: now.toISOString(),
+  timeMax: endOfDay.toISOString(),
+});
+
+// Search events by keyword
+const meetings = await tools["google-calendar"].listEvents("primary", {
+  query: "standup",
+  timeMin: new Date().toISOString(),
+  maxResults: 5,
+});
+
+// Create a timed event with attendees
+const event = await tools["google-calendar"].createEvent("primary", {
+  summary: "Project review",
+  description: "Quarterly review of project milestones",
+  location: "Conference Room A",
+  start: { dateTime: "2025-01-20T14:00:00-05:00" },
+  end: { dateTime: "2025-01-20T15:00:00-05:00" },
+  attendees: [{ email: "alice@example.com" }, { email: "bob@example.com" }],
+  timeZone: "America/New_York",
+});
+
+// Create an all-day event
+const allDay = await tools["google-calendar"].createEvent("primary", {
+  summary: "Team offsite",
+  start: { date: "2025-02-10" },
+  end: { date: "2025-02-12" },
+});
+
+// Quick add from natural language
+const quick = await tools["google-calendar"].quickAdd("primary", "Dentist appointment Friday at 2pm");
+
+// Update an event
+const updated = await tools["google-calendar"].updateEvent("primary", "abc123", {
+  summary: "Updated: Project review",
+  start: { dateTime: "2025-01-20T15:00:00-05:00" },
+  end: { dateTime: "2025-01-20T16:00:00-05:00" },
+});
+
+// Delete an event
+await tools["google-calendar"].deleteEvent("primary", "abc123");
+```
+
+Output behavior
+- Return compact, structured results.
+- Echo calendarId and eventId in responses for traceability.
+- On mutations, confirm what changed (created, updated, deleted).
+- For event listings, include summary, time range, and attendee count.
