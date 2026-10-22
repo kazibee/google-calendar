@@ -18,14 +18,14 @@ export interface LoginResult {
  * 2. Opens the browser to Google's OAuth consent screen
  * 3. Receives the auth code via redirect
  * 4. Exchanges for refresh + access tokens
- * 5. Returns the credentials for storage via kazibee tool env
+ * 5. Returns the credentials; the app saves them as this extension's env vars
  */
 export async function login(env: Record<string, string>, ...args: string[]): Promise<LoginResult> {
   // Check for --help flag
   if (args.includes('--help')) {
     console.log([
       '',
-      `Usage: kazibee <tool-name> login [CLIENT_ID CLIENT_SECRET]`,
+      'Usage: login [CLIENT_ID CLIENT_SECRET]  (Settings → Tools → google-calendar → Commands)',
       '',
       'Runs the OAuth2 browser login flow to obtain a refresh token.',
       '',
@@ -37,7 +37,7 @@ export async function login(env: Record<string, string>, ...args: string[]): Pro
       '  5. Stores CLIENT_ID, CLIENT_SECRET, and REFRESH_TOKEN as tool env vars',
       '',
       'Options:',
-      '  CLIENT_ID CLIENT_SECRET   Use custom OAuth app credentials instead of defaults',
+      '  CLIENT_ID CLIENT_SECRET   OAuth app credentials (default: the extension\'s Environment values)',
       '  --help                    Show this help message',
       '',
     ].join('\n'));
@@ -50,8 +50,8 @@ export async function login(env: Record<string, string>, ...args: string[]): Pro
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
     throw new Error(
-      'Missing CLIENT_ID or CLIENT_SECRET. Provide them as arguments or ensure they are set in the system env.\n' +
-      'Usage: kazibee <tool-name> login [CLIENT_ID CLIENT_SECRET]'
+      'Missing CLIENT_ID or CLIENT_SECRET. Pass them as login arguments or set them in Settings → Tools → google-calendar → Environment.\n' +
+      'Usage: login [CLIENT_ID CLIENT_SECRET]'
     );
   }
 

@@ -4,27 +4,15 @@ Google Calendar tool for kazibee. Create, read, update, and delete calendar even
 
 ## Install
 
-```bash
-kazibee install google-calendar github:kazibee/google-calendar
-```
-
-Install globally with `-g`:
-
-```bash
-kazibee install -g google-calendar github:kazibee/google-calendar
-```
-
-Or pin to a specific commit:
-
-```bash
-kazibee install google-calendar github:kazibee/google-calendar#COMMIT_SHA
-```
+In the Kazibee desktop app, open **Settings → Tools → Add Extension → Install** and enter
+`github:kazibee/google-calendar`. The app clones the latest commit and records its SHA; use
+**Update** on the extension to move to a newer commit.
 
 ## Login
 
-```bash
-kazibee google-calendar login
-```
+Open **Settings → Tools → google-calendar → Commands** and run `login`. It needs a Google
+OAuth app's `CLIENT_ID` and `CLIENT_SECRET`: set them in the extension's **Environment** tab,
+or pass them as the command's arguments (`CLIENT_ID CLIENT_SECRET`).
 
 Opens your browser to authorize with Google. Credentials are stored automatically.
 
